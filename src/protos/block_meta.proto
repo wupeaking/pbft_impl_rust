@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "model";
+option go_package = "./;model";
+
+import "consensus.proto";
+
+
+message BlockMeta {
+    uint64 block_height = 1;
+    verifier cur_verfier = 2;
+    uint32 verifier_no = 3;
+    repeated verifier verifiers = 4;
+    uint64 last_view = 5;
+}
+
+enum BlockRequestType {
+    default_type = 0;
+    only_header = 1;
+    whole_content = 2;
+}
+
+message BlockRequest {
+    int64 block_num = 1;
+    BlockRequestType request_type = 2;
+}
+
+message BlockResponse{
+    BlockRequestType request_type = 2;
+    PbftBlock block = 3;
+}
+
+enum BroadcastMsgType {
+    unknown_msg = 0;
+    // 共识相关
+    send_pbft_msg = 1;
+    send_block_meta = 2;
+    // tx
+    send_tx = 10;  // 意味着接收到从其他节点发过来的交易
+
+    // blockchain
+    request_load_block = 20;
+    send_specific_block = 21;
+}
+
+
+// protoc --go_out=./   -I . block_meta.proto
