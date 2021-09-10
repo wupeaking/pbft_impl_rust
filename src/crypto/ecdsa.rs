@@ -4,16 +4,16 @@ use p256::ecdsa::SigningKey;
 use p256::ecdsa::VerifyingKey;
 use p256::EncodedPoint;
 use rand_core::OsRng;
-use ring::{agreement, rand, signature};
+// use ring::{agreement, rand, signature};
 
 /// ## 随机生成一对公钥 私钥
 /// 返回值为 私钥 公钥 错误
 pub fn generate_key_pairs() -> Result<(String, String), CounchError> {
-    let rng = rand::SystemRandom::new();
-    let key_pair =
-        signature::EcdsaKeyPair::generate_pkcs8(&signature::ECDSA_P256_SHA256_FIXED_SIGNING, &rng)?;
+    // let rng = rand::SystemRandom::new();
+    // let key_pair =
+    //     signature::EcdsaKeyPair::generate_pkcs8(&signature::ECDSA_P256_SHA256_FIXED_SIGNING, &rng)?;
 
-    let private_key = agreement::EphemeralPrivateKey::generate(&agreement::ECDH_P256, &rng)?;
+    // let private_key = agreement::EphemeralPrivateKey::generate(&agreement::ECDH_P256, &rng)?;
 
     let k = SigningKey::random(&mut OsRng);
     // let p = k.to_bytes();
@@ -51,12 +51,13 @@ pub fn verifier_sign(
     msg: &[u8],
     signed_value: &[u8],
 ) -> Result<bool, CounchError> {
-    use p256::ecdsa::signature::Verifier;
     use p256::ecdsa::signature::Signature;
+    use p256::ecdsa::signature::Verifier;
     let sig_instance = Signature::from_bytes(signed_value)?;
 
     // VerifyingKey::verify(&self, msg, signature)
-    if let Err(_) = ver_key.verify(msg, &sig_instance) {
+    if let Err(e) = ver_key.verify(msg, &sig_instance) {
+        println!("{}", e);
         return Ok(false);
     }
     return Ok(true);
@@ -112,6 +113,43 @@ mod tests {
         // 使用公钥验证签名
         let ver_key = super::load_pub_key(pub_key).unwrap();
         let ok = super::verifier_sign(&ver_key, &msg, &signed_value).unwrap();
+        assert_eq!(ok, true);
+    }
+
+    #[test]
+    fn sign_verify_from_go() {
+        //pri:  0x75ee50e67e8090e08c8ce92ad5d50d60ca613dd7df278b637790d81d81dd8f58
+        // pub:  0x4ce5b242e960fb935db128813be9204ff5e5d955a7d7c70efdaa7a9d825ae6f6e0f69044a180ca30ad157062b2575073ed8e810dc8a0cec262c1568e28eeae1e
+        //signed:  0xb7c96c6cc319b2c741d46c221cc9c3855749f3efffffb0386d40ba149f2193ed21954beced553c9f12fadc48f23076ee00704654343e0afaacf6ba244499275f
+        // 从Go代码生成公钥和私钥签名结果
+        // 现在使用rust去加载公钥 检查是否能验证通过
+        let priv_key = super::load_private_key("75ee50e67e8090e08c8ce92ad5d50d60ca613dd7df278b637790d81d81dd8f58".to_string()).unwrap();
+        use p256::ecdsa::VerifyingKey;
+        let pub_k = VerifyingKey::from(&priv_key);
+        let pub_k = VerifyingKey::to_encoded_point(&pub_k, false).to_bytes();
+        assert_eq!(&hex::decode("044ce5b242e960fb935db128813be9204ff5e5d955a7d7c70efdaa7a9d825ae6f6e0f69044a180ca30ad157062b2575073ed8e810dc8a0cec262c1568e28eeae1e").unwrap()[..], &pub_k[..]);
+
+
+        let pub_key= super::load_pub_key("044ce5b242e960fb935db128813be9204ff5e5d955a7d7c70efdaa7a9d825ae6f6e0f69044a180ca30ad157062b2575073ed8e810dc8a0cec262c1568e28eeae1e".to_string()).unwrap();
+        let msg = "helloworld";
+        let msg = super::sha256(msg.as_bytes());
+        assert_eq!(
+            [
+                147, 106, 24, 92, 170, 162, 102, 187, 156, 190, 152, 30, 158, 5, 203, 120, 205,
+                115, 43, 11, 50, 128, 235, 148, 68, 18, 187, 111, 143, 143, 7, 175
+            ],
+            &msg[..]
+        );
+        let priv_key = super::load_private_key(
+            "75ee50e67e8090e08c8ce92ad5d50d60ca613dd7df278b637790d81d81dd8f58".to_string(),
+        )
+        .unwrap();
+        let new_signed = super::sign(&priv_key, &msg).unwrap();
+        println!("signed: {}", hex::encode(&new_signed));
+
+        let signed_value = hex::decode("b7c96c6cc319b2c741d46c221cc9c3855749f3efffffb0386d40ba149f2193ed21954beced553c9f12fadc48f23076ee00704654343e0afaacf6ba244499275f").unwrap();
+
+        let ok = super::verifier_sign(&pub_key, &msg, &signed_value).unwrap();
         assert_eq!(ok, true);
     }
 }
