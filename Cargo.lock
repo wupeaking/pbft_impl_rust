@@ -227,11 +227,13 @@ dependencies = [
 name = "pbft_impl_rust"
 version = "0.1.0"
 dependencies = [
+ "digest",
  "hex",
  "p256",
  "protobuf",
  "rand_core",
  "ring",
+ "sha2",
  "thiserror",
 ]
 

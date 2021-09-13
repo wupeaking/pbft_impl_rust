@@ -38,12 +38,15 @@ pub fn load_pub_key(hex_str: String) -> Result<VerifyingKey, CounchError> {
     return Ok(pub_key);
 }
 
+/// sign 对内容进行签名
+/// content 签名内容 此处不需要提前进行sha256计算 该签名包会自动进行计算
 pub fn sign(sign_key: &SigningKey, content: &[u8]) -> Result<Vec<u8>, CounchError> {
     use p256::ecdsa::signature::Signer;
 
     let sig_ret = Signer::sign(sign_key, content);
-    use p256::ecdsa::signature::Signature;
-    return Ok(Vec::<u8>::from(sig_ret.as_bytes()));
+    return Ok(Vec::<u8>::from(sig_ret.as_ref()));
+    // use p256::ecdsa::signature::Signature;
+    // return Ok(Vec::<u8>::from(sig_ret.as_bytes()));
 }
 
 pub fn verifier_sign(
@@ -60,6 +63,17 @@ pub fn verifier_sign(
         println!("{}", e);
         return Ok(false);
     }
+
+    // VerifyingKey::verify(&self, msg, signature)
+    // use p256::ecdsa::signature::verifier::DigestVerifier;
+    // ver_key.verify_digest(digest, signature)
+    // use p256::ecdsa::signature::DigestVerifier;
+    // use sha2::Sha256;
+    // use digest::Digest;
+    // if let Err(e) = ver_key.verify_digest(Sha256::from(msg), &sig_instance) {
+    //     println!("{}", e);
+    //     return Ok(false);
+    // }
     return Ok(true);
 }
 
@@ -123,12 +137,14 @@ mod tests {
         //signed:  0xb7c96c6cc319b2c741d46c221cc9c3855749f3efffffb0386d40ba149f2193ed21954beced553c9f12fadc48f23076ee00704654343e0afaacf6ba244499275f
         // 从Go代码生成公钥和私钥签名结果
         // 现在使用rust去加载公钥 检查是否能验证通过
-        let priv_key = super::load_private_key("75ee50e67e8090e08c8ce92ad5d50d60ca613dd7df278b637790d81d81dd8f58".to_string()).unwrap();
+        let priv_key = super::load_private_key(
+            "75ee50e67e8090e08c8ce92ad5d50d60ca613dd7df278b637790d81d81dd8f58".to_string(),
+        )
+        .unwrap();
         use p256::ecdsa::VerifyingKey;
         let pub_k = VerifyingKey::from(&priv_key);
         let pub_k = VerifyingKey::to_encoded_point(&pub_k, false).to_bytes();
         assert_eq!(&hex::decode("044ce5b242e960fb935db128813be9204ff5e5d955a7d7c70efdaa7a9d825ae6f6e0f69044a180ca30ad157062b2575073ed8e810dc8a0cec262c1568e28eeae1e").unwrap()[..], &pub_k[..]);
-
 
         let pub_key= super::load_pub_key("044ce5b242e960fb935db128813be9204ff5e5d955a7d7c70efdaa7a9d825ae6f6e0f69044a180ca30ad157062b2575073ed8e810dc8a0cec262c1568e28eeae1e".to_string()).unwrap();
         let msg = "helloworld";
@@ -144,12 +160,12 @@ mod tests {
             "75ee50e67e8090e08c8ce92ad5d50d60ca613dd7df278b637790d81d81dd8f58".to_string(),
         )
         .unwrap();
-        let new_signed = super::sign(&priv_key, &msg).unwrap();
+        let new_signed = super::sign(&priv_key, b"helloworld").unwrap();
         println!("signed: {}", hex::encode(&new_signed));
 
         let signed_value = hex::decode("b7c96c6cc319b2c741d46c221cc9c3855749f3efffffb0386d40ba149f2193ed21954beced553c9f12fadc48f23076ee00704654343e0afaacf6ba244499275f").unwrap();
 
-        let ok = super::verifier_sign(&pub_key, &msg, &signed_value).unwrap();
+        let ok = super::verifier_sign(&pub_key, b"helloworld", &signed_value).unwrap();
         assert_eq!(ok, true);
     }
 }
