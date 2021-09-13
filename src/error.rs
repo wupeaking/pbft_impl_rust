@@ -28,6 +28,9 @@ pub enum CounchError {
 
     #[error("未知错误 {0}")]
     Unknown(String),
+
+    #[error("未实现此方法")]
+    UnImpl,
 }
 
 impl From<ring::error::Unspecified> for CounchError {
